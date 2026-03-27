@@ -13,6 +13,7 @@ spec:
       labels:
         app: backend
     spec:
+      dnsPolicy: ClusterFirst
       nodeSelector:
         kubernetes.io/hostname: k3s-worker-centos
       containers:
@@ -33,7 +34,7 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: POSTGRES_HOST
-              value: db
+              value: db.demo.svc.cluster.local
             - name: POSTGRES_DB
               value: testdb
             - name: POSTGRES_USER
@@ -41,7 +42,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
             - name: REDIS_HOST
-              value: redis
+              value: redis.demo.svc.cluster.local
             - name: REDIS_PORT
               value: "6379"
           readinessProbe:

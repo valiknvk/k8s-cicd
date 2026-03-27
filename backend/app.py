@@ -4,6 +4,7 @@ import os
 
 import psycopg2
 import redis
+from redis.exceptions import RedisError
 
 app = Flask(__name__)
 
@@ -55,7 +56,12 @@ def version():
 @app.route("/api/items", methods=["GET"])
 def get_items():
     try:
-        cached = r.get("items")
+        cached = None
+        try:
+            cached = r.get("items")
+        except RedisError:
+            cached = None
+
         if cached:
             return jsonify(json.loads(cached))
 
@@ -68,7 +74,10 @@ def get_items():
         conn.close()
 
         items_list = [{"id": row[0], "name": row[1]} for row in data]
-        r.set("items", json.dumps(items_list), ex=60)
+        try:
+            r.set("items", json.dumps(items_list), ex=60)
+        except RedisError:
+            pass
 
         return jsonify(items_list)
     except Exception as error:
@@ -93,7 +102,10 @@ def add_item():
         cur.close()
         conn.close()
 
-        r.delete("items")
+        try:
+            r.delete("items")
+        except RedisError:
+            pass
 
         return jsonify({"id": new_id, "name": name}), 201
     except Exception as error:
