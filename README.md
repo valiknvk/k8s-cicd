@@ -28,3 +28,9 @@ systemctl restart nginx
 
 ## Test
 curl http://SERVER_IP
+
+## Versioning
+
+kubectl rollout history deployment/demo-nginx -n demo
+kubectl rollout undo deployment/demo-nginx -n demo
+kubectl rollout status deployment/demo-nginx -n demo
