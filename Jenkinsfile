@@ -98,6 +98,10 @@ pipeline {
             backend=${FULL_BACKEND_IMAGE} \
             -n ${NAMESPACE}
 
+          kubectl set env deployment/${BACKEND_APP_NAME} \
+            APP_VERSION=${IMAGE_TAG} \
+            -n ${NAMESPACE}
+
           kubectl rollout status deployment/${APP_NAME} -n ${NAMESPACE} --timeout=180s
           kubectl rollout status deployment/${BACKEND_APP_NAME} -n ${NAMESPACE} --timeout=180s
         '''
@@ -108,7 +112,18 @@ pipeline {
       steps {
         sh '''
           set -eux
-          curl -f http://127.0.0.1/
+          export KUBECONFIG=${KUBECONFIG}
+
+          kubectl -n ${NAMESPACE} port-forward svc/demo-nginx 18080:80 >/tmp/pf-frontend.log 2>&1 &
+          PF_FRONTEND_PID=$!
+          trap 'kill ${PF_FRONTEND_PID} ${PF_BACKEND_PID:-} >/dev/null 2>&1 || true' EXIT
+          sleep 3
+          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18080/
+
+          kubectl -n ${NAMESPACE} port-forward svc/backend 15000:5000 >/tmp/pf-backend.log 2>&1 &
+          PF_BACKEND_PID=$!
+          sleep 3
+          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:15000/health
         '''
       }
     }
