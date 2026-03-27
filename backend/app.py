@@ -59,15 +59,6 @@ def get_items():
         if cached:
             return jsonify(json.loads(cached))
 
-<<<<<<< Updated upstream
-    conn = get_db_connection()
-    ensure_items_table(conn)
-    cur = conn.cursor()
-    cur.execute("SELECT id, name FROM items;")
-    data = cur.fetchall()
-    cur.close()
-    conn.close()
-=======
         conn = get_db_connection()
         ensure_items_table(conn)
         cur = conn.cursor()
@@ -75,7 +66,6 @@ def get_items():
         data = cur.fetchall()
         cur.close()
         conn.close()
->>>>>>> Stashed changes
 
         items_list = [{"id": row[0], "name": row[1]} for row in data]
         r.set("items", json.dumps(items_list), ex=60)
@@ -94,16 +84,6 @@ def add_item():
         if not name:
             return jsonify({"error": "name is required"}), 400
 
-<<<<<<< Updated upstream
-    conn = get_db_connection()
-    ensure_items_table(conn)
-    cur = conn.cursor()
-    cur.execute("INSERT INTO items (name) VALUES (%s) RETURNING id;", (name,))
-    new_id = cur.fetchone()[0]
-    conn.commit()
-    cur.close()
-    conn.close()
-=======
         conn = get_db_connection()
         ensure_items_table(conn)
         cur = conn.cursor()
@@ -112,7 +92,6 @@ def add_item():
         conn.commit()
         cur.close()
         conn.close()
->>>>>>> Stashed changes
 
         r.delete("items")
 
