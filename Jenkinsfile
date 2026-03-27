@@ -109,44 +109,15 @@ pipeline {
     }
 
     stage('Health check') {
-      steps {
-        sh '''
-          set -eux
-          export KUBECONFIG=${KUBECONFIG}
+  steps {
+    sh '''
+      set -eux
+      curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18080/
+      curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18081/health
+    '''
+  }
+}
 
-          FRONTEND_PORT=28080
-          BACKEND_PORT=25000
-
-          kubectl -n ${NAMESPACE} port-forward svc/demo-nginx ${FRONTEND_PORT}:80 >/tmp/pf-frontend.log 2>&1 &
-          PF_FRONTEND_PID=$!
-
-          kubectl -n ${NAMESPACE} port-forward svc/backend ${BACKEND_PORT}:5000 >/tmp/pf-backend.log 2>&1 &
-          PF_BACKEND_PID=$!
-
-          trap 'kill ${PF_FRONTEND_PID} ${PF_BACKEND_PID} >/dev/null 2>&1 || true' EXIT
-
-          for i in $(seq 1 20); do
-            if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:${FRONTEND_PORT}/ >/dev/null; then
-              break
-            fi
-            sleep 1
-          done
-
-          for i in $(seq 1 20); do
-            if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:${BACKEND_PORT}/health >/dev/null; then
-              break
-            fi
-            sleep 1
-          done
-
-          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:${FRONTEND_PORT}/ \
-            || { cat /tmp/pf-frontend.log; exit 1; }
-
-          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:${BACKEND_PORT}/health \
-            || { cat /tmp/pf-backend.log; exit 1; }
-        '''
-      }
-    }
 
 
   }

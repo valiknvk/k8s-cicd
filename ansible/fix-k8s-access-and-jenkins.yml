@@ -53,15 +53,16 @@
         content: |
           [Unit]
           Description=K8s Port Forward Frontend (demo-nginx)
-          After=network-online.target
+          After=network-online.target k3s.service
           Wants=network-online.target
+          StartLimitIntervalSec=0
 
           [Service]
           Type=simple
           Environment=KUBECONFIG={{ kubeconfig_path }}
-          ExecStart={{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/demo-nginx {{ frontend_local_port }}:80 --address 127.0.0.1
+          ExecStart=/bin/bash -lc 'while true; do {{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/demo-nginx {{ frontend_local_port }}:80 --address 127.0.0.1; sleep 1; done'
           Restart=always
-          RestartSec=2
+          RestartSec=1
 
           [Install]
           WantedBy=multi-user.target
@@ -73,15 +74,16 @@
         content: |
           [Unit]
           Description=K8s Port Forward Backend
-          After=network-online.target
+          After=network-online.target k3s.service
           Wants=network-online.target
+          StartLimitIntervalSec=0
 
           [Service]
           Type=simple
           Environment=KUBECONFIG={{ kubeconfig_path }}
-          ExecStart={{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/backend {{ backend_local_port }}:5000 --address 127.0.0.1
+          ExecStart=/bin/bash -lc 'while true; do {{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/backend {{ backend_local_port }}:5000 --address 127.0.0.1; sleep 1; done'
           Restart=always
-          RestartSec=2
+          RestartSec=1
 
           [Install]
           WantedBy=multi-user.target

@@ -34,7 +34,7 @@ spec:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: POSTGRES_HOST
-              value: db.demo.svc.cluster.local
+              value: ""
             - name: POSTGRES_DB
               value: testdb
             - name: POSTGRES_USER
@@ -42,7 +42,7 @@ spec:
             - name: POSTGRES_PASSWORD
               value: password
             - name: REDIS_HOST
-              value: redis.demo.svc.cluster.local
+              value: ""
             - name: REDIS_PORT
               value: "6379"
           readinessProbe:

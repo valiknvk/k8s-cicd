@@ -8,13 +8,13 @@ from redis.exceptions import RedisError
 
 app = Flask(__name__)
 
-DB_HOST = os.environ.get("POSTGRES_HOST", "db")
+DB_HOST = os.environ.get("POSTGRES_HOST") or os.environ.get("DB_SERVICE_HOST", "db")
 DB_NAME = os.environ.get("POSTGRES_DB", "testdb")
 DB_USER = os.environ.get("POSTGRES_USER", "user")
 DB_PASS = os.environ.get("POSTGRES_PASSWORD", "password")
 
-REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
-REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+REDIS_HOST = os.environ.get("REDIS_HOST") or os.environ.get("REDIS_SERVICE_HOST", "redis")
+REDIS_PORT = int(os.environ.get("REDIS_PORT") or os.environ.get("REDIS_SERVICE_PORT", 6379))
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 
