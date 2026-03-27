@@ -1,0 +1,174 @@
+---
+- name: Open NodePort on workers (diagnostic/fallback)
+  hosts: workers
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Allow NodePort with UFW (Debian/Ubuntu)
+      ansible.builtin.shell: |
+        ufw allow 30080/tcp
+        ufw allow 30081/tcp
+      when: ansible_facts.os_family == "Debian"
+      changed_when: false
+      failed_when: false
+
+    - name: Check firewalld status (RHEL/CentOS)
+      ansible.builtin.command: systemctl is-active firewalld
+      register: firewalld_status
+      changed_when: false
+      failed_when: false
+      when: ansible_facts.os_family == "RedHat"
+
+    - name: Allow NodePort with firewalld (RHEL/CentOS)
+      ansible.builtin.shell: |
+        firewall-cmd --permanent --add-port=30080/tcp
+        firewall-cmd --permanent --add-port=30081/tcp
+        firewall-cmd --reload
+      when:
+        - ansible_facts.os_family == "RedHat"
+        - firewalld_status.stdout == "active"
+      changed_when: false
+      failed_when: false
+
+- name: Configure server access via local port-forward + nginx
+  hosts: server
+  become: true
+  gather_facts: true
+  vars:
+    namespace: demo
+    kubeconfig_path: /etc/rancher/k3s/k3s.yaml
+    frontend_local_port: 18080
+    backend_local_port: 18081
+    jenkinsfile_path: /root/k8s-cicd/Jenkinsfile
+  tasks:
+    - name: Detect kubectl binary
+      ansible.builtin.shell: command -v kubectl
+      register: kubectl_bin
+      changed_when: false
+
+    - name: Install systemd unit for frontend port-forward
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k8s-pf-frontend.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=K8s Port Forward Frontend (demo-nginx)
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          Environment=KUBECONFIG={{ kubeconfig_path }}
+          ExecStart={{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/demo-nginx {{ frontend_local_port }}:80 --address 127.0.0.1
+          Restart=always
+          RestartSec=2
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Install systemd unit for backend port-forward
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/k8s-pf-backend.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=K8s Port Forward Backend
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          Environment=KUBECONFIG={{ kubeconfig_path }}
+          ExecStart={{ kubectl_bin.stdout }} -n {{ namespace }} port-forward svc/backend {{ backend_local_port }}:5000 --address 127.0.0.1
+          Restart=always
+          RestartSec=2
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and restart port-forward services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: restarted
+      loop:
+        - k8s-pf-frontend.service
+        - k8s-pf-backend.service
+
+    - name: Configure nginx reverse proxy
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/k8s
+        mode: "0644"
+        content: |
+          server {
+              listen 80;
+              server_name _;
+
+              location /api/ {
+                  proxy_pass http://127.0.0.1:{{ backend_local_port }}/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  add_header X-Nginx-Host $hostname always;
+                  add_header X-Upstream-Addr $upstream_addr always;
+                  add_header X-Upstream-Status $upstream_status always;
+              }
+
+              location / {
+                  proxy_pass http://127.0.0.1:{{ frontend_local_port }}/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              }
+          }
+
+    - name: Enable k8s nginx site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/k8s
+        dest: /etc/nginx/sites-enabled/k8s
+        state: link
+        force: true
+
+    - name: Disable default nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Validate nginx config
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+
+    - name: Patch Jenkinsfile Health check stage (port-forward independent)
+      ansible.builtin.replace:
+        path: "{{ jenkinsfile_path }}"
+        regexp: "(?ms)stage\\('Health check'\\) \\{\\n\\s*steps \\{\\n\\s*sh '''\\n.*?\\n\\s*'''\\n\\s*\\}\\n\\s*\\}"
+        replace: |
+          stage('Health check') {
+            steps {
+              sh '''
+                set -eux
+                curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18080/
+                curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18081/health
+              '''
+            }
+          }
+      failed_when: false
+
+    - name: Verify local frontend through nginx
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        status_code: 200
+
+    - name: Verify local backend through nginx
+      ansible.builtin.uri:
+        url: http://127.0.0.1/api/version
+        status_code: 200

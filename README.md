@@ -52,3 +52,8 @@ curl http://SERVER_IP
 kubectl rollout history deployment/demo-nginx -n demo
 kubectl rollout undo deployment/demo-nginx -n demo
 kubectl rollout status deployment/demo-nginx -n demo
+
+## Cluster setup via ansible
+
+ansible-playbook -i inventory ansible/fix-k8s-access-and-jenkins.yml -b \
+    -e jenkinsfile_path=/path/to/Jenkinsfile

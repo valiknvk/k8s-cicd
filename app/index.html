@@ -25,6 +25,7 @@
   <div class="card">
     <h3>Items from DB/Redis</h3>
     <button id="addBtn">Add item</button>
+    <div id="status" class="muted"></div>
     <ul id="items"></ul>
   </div>
 
@@ -34,9 +35,16 @@
   </div>
 
   <script>
+    function setStatus(text, isError = false) {
+      const status = document.getElementById('status');
+      status.textContent = text;
+      status.style.color = isError ? '#b00020' : '#666';
+    }
+
     async function loadVersion() {
       const response = await fetch('/api/version');
-      const payload = await response.json();
+      const text = await response.text();
+      const payload = text ? JSON.parse(text) : {};
       document.getElementById('version').textContent = JSON.stringify(payload, null, 2);
 
       const headers = {
@@ -49,6 +57,11 @@
 
     async function loadItems() {
       const response = await fetch('/api/items');
+      if (!response.ok) {
+        const body = await response.text();
+        setStatus(`GET /api/items failed: ${response.status} ${body}`, true);
+        return;
+      }
       const items = await response.json();
       const list = document.getElementById('items');
       list.innerHTML = '';
@@ -57,23 +70,34 @@
         li.textContent = `${item.id}: ${item.name}`;
         list.appendChild(li);
       });
+      setStatus(`Loaded ${items.length} item(s)`);
     }
 
     async function addItem() {
       const name = `WebItem-${Date.now()}`;
-      await fetch('/api/items', {
+      const response = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
       });
+      if (!response.ok) {
+        const body = await response.text();
+        setStatus(`POST /api/items failed: ${response.status} ${body}`, true);
+        return;
+      }
+      setStatus(`Added: ${name}`);
       await loadItems();
     }
 
     document.getElementById('addBtn').addEventListener('click', addItem);
 
     async function refresh() {
-      await loadVersion();
-      await loadItems();
+      try {
+        await loadVersion();
+        await loadItems();
+      } catch (error) {
+        setStatus(`Refresh error: ${error.message}`, true);
+      }
     }
 
     refresh();

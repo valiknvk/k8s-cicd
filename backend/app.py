@@ -26,6 +26,13 @@ def get_db_connection():
     )
 
 
+def ensure_items_table(conn):
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS items (id SERIAL PRIMARY KEY, name TEXT);")
+    conn.commit()
+    cur.close()
+
+
 @app.route("/health")
 @app.route("/api/health")
 def health():
@@ -52,6 +59,7 @@ def get_items():
         return jsonify(json.loads(cached))
 
     conn = get_db_connection()
+    ensure_items_table(conn)
     cur = conn.cursor()
     cur.execute("SELECT id, name FROM items;")
     data = cur.fetchall()
@@ -73,6 +81,7 @@ def add_item():
         return jsonify({"error": "name is required"}), 400
 
     conn = get_db_connection()
+    ensure_items_table(conn)
     cur = conn.cursor()
     cur.execute("INSERT INTO items (name) VALUES (%s) RETURNING id;", (name,))
     new_id = cur.fetchone()[0]
