@@ -9,11 +9,14 @@ pipeline {
 
   environment {
     APP_NAME     = 'demo-nginx'
+    BACKEND_APP_NAME = 'backend'
     NAMESPACE    = 'demo'
     DOCKERHUB_REPO = 'novikva/demo-nginx'
+    DOCKERHUB_BACKEND_REPO = 'novikva/demo-backend'
     KUBECONFIG   = '/var/lib/jenkins/.kube/config'
     IMAGE_TAG = "${BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
     FULL_IMAGE   = "${DOCKERHUB_REPO}:${IMAGE_TAG}"
+    FULL_BACKEND_IMAGE = "${DOCKERHUB_BACKEND_REPO}:${IMAGE_TAG}"
   }
 
   stages {
@@ -39,6 +42,8 @@ pipeline {
           set -eux
           docker build -t ${FULL_IMAGE} .
           docker tag ${FULL_IMAGE} ${DOCKERHUB_REPO}:latest
+          docker build -t ${FULL_BACKEND_IMAGE} ./backend
+          docker tag ${FULL_BACKEND_IMAGE} ${DOCKERHUB_BACKEND_REPO}:latest
         '''
       }
     }
@@ -55,6 +60,8 @@ pipeline {
             echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
             docker push ${FULL_IMAGE}
             docker push ${DOCKERHUB_REPO}:latest
+            docker push ${FULL_BACKEND_IMAGE}
+            docker push ${DOCKERHUB_BACKEND_REPO}:latest
           '''
         }
       }
@@ -66,6 +73,9 @@ pipeline {
           set -eux
           export KUBECONFIG=${KUBECONFIG}
           kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/postgres.yaml
+          kubectl apply -f k8s/redis.yaml
+          kubectl apply -f k8s/backend.yaml
 
           if ! kubectl get deployment ${APP_NAME} -n ${NAMESPACE} >/dev/null 2>&1; then
             kubectl apply -f k8s/deployment.yaml
@@ -84,7 +94,12 @@ pipeline {
             nginx=${FULL_IMAGE} \
             -n ${NAMESPACE}
 
+          kubectl set image deployment/${BACKEND_APP_NAME} \
+            backend=${FULL_BACKEND_IMAGE} \
+            -n ${NAMESPACE}
+
           kubectl rollout status deployment/${APP_NAME} -n ${NAMESPACE} --timeout=180s
+          kubectl rollout status deployment/${BACKEND_APP_NAME} -n ${NAMESPACE} --timeout=180s
         '''
       }
     }
