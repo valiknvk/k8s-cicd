@@ -65,8 +65,6 @@ pipeline {
         sh '''
           set -eux
           export KUBECONFIG=${KUBECONFIG}
-
-          kubectl get namespace ${NAMESPACE} >/dev/null 2>&1 || kubectl create namespace ${NAMESPACE}
           kubectl apply -f k8s/service.yaml
 
           if ! kubectl get deployment ${APP_NAME} -n ${NAMESPACE} >/dev/null 2>&1; then
