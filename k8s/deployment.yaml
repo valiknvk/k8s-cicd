@@ -5,6 +5,12 @@ metadata:
   namespace: demo
 spec:
   replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: demo-nginx
@@ -14,7 +20,20 @@ spec:
         app: demo-nginx
     spec:
       containers:
-      - name: nginx
-        image: novikva/demo-nginx:latest
-        ports:
-        - containerPort: 80
+        - name: nginx
+          image: novikva/demo-nginx:INITIAL
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
