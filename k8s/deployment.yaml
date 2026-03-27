@@ -19,6 +19,8 @@ spec:
       labels:
         app: demo-nginx
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-server
       containers:
         - name: nginx
           image: novikva/demo-nginx:INITIAL

@@ -22,6 +22,8 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker-ubuntu
       containers:
         - name: postgres
           image: postgres:16

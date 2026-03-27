@@ -1,1 +1,83 @@
-<h1>K8S CI/CD WORKS</h1>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K8S CI/CD Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    h1 { margin-bottom: 8px; }
+    .muted { color: #666; margin-bottom: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    code { background: #f4f4f4; padding: 2px 4px; border-radius: 4px; }
+    button { padding: 8px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>K8S CI/CD WORKS</h1>
+  <div class="muted">Frontend via nginx → backend API → PostgreSQL/Redis</div>
+
+  <div class="card">
+    <h3>Backend Version / Pod / Node</h3>
+    <pre id="version">loading...</pre>
+  </div>
+
+  <div class="card">
+    <h3>Items from DB/Redis</h3>
+    <button id="addBtn">Add item</button>
+    <ul id="items"></ul>
+  </div>
+
+  <div class="card">
+    <h3>Nginx / Upstream Headers</h3>
+    <pre id="headers">loading...</pre>
+  </div>
+
+  <script>
+    async function loadVersion() {
+      const response = await fetch('/api/version');
+      const payload = await response.json();
+      document.getElementById('version').textContent = JSON.stringify(payload, null, 2);
+
+      const headers = {
+        nginxHost: response.headers.get('x-nginx-host'),
+        upstreamAddr: response.headers.get('x-upstream-addr'),
+        upstreamStatus: response.headers.get('x-upstream-status')
+      };
+      document.getElementById('headers').textContent = JSON.stringify(headers, null, 2);
+    }
+
+    async function loadItems() {
+      const response = await fetch('/api/items');
+      const items = await response.json();
+      const list = document.getElementById('items');
+      list.innerHTML = '';
+      items.forEach((item) => {
+        const li = document.createElement('li');
+        li.textContent = `${item.id}: ${item.name}`;
+        list.appendChild(li);
+      });
+    }
+
+    async function addItem() {
+      const name = `WebItem-${Date.now()}`;
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      });
+      await loadItems();
+    }
+
+    document.getElementById('addBtn').addEventListener('click', addItem);
+
+    async function refresh() {
+      await loadVersion();
+      await loadItems();
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

@@ -32,6 +32,18 @@ def health():
     return "OK", 200
 
 
+@app.route("/version")
+@app.route("/api/version")
+def version():
+    return jsonify(
+        {
+            "version": os.environ.get("APP_VERSION", "dev"),
+            "pod": os.environ.get("POD_NAME", os.environ.get("HOSTNAME", "unknown")),
+            "node": os.environ.get("NODE_NAME", "unknown"),
+        }
+    )
+
+
 @app.route("/items", methods=["GET"])
 @app.route("/api/items", methods=["GET"])
 def get_items():

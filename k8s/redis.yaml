@@ -13,6 +13,8 @@ spec:
       labels:
         app: redis
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-worker-ubuntu
       containers:
         - name: redis
           image: redis:8
