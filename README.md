@@ -55,5 +55,5 @@ kubectl rollout status deployment/demo-nginx -n demo
 
 ## Cluster setup via ansible
 
-ansible-playbook -i inventory ansible/fix-k8s-access-and-jenkins.yml -b \
+ansible-playbook -i inventory.ini ansible/fix-k8s-access-and-jenkins.yml -b \
     -e jenkinsfile_path=/path/to/Jenkinsfile
