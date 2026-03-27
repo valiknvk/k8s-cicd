@@ -43,8 +43,24 @@
 
     async function loadVersion() {
       const response = await fetch('/api/version');
+<<<<<<< Updated upstream
       const text = await response.text();
       const payload = text ? JSON.parse(text) : {};
+=======
+      if (!response.ok) {
+        const body = await response.text();
+        setStatus(`GET /api/version failed: ${response.status} ${body}`, true);
+        return;
+      }
+      const text = await response.text();
+      let payload = {};
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch (error) {
+        setStatus(`GET /api/version parse failed: ${error.message}`, true);
+        return;
+      }
+>>>>>>> Stashed changes
       document.getElementById('version').textContent = JSON.stringify(payload, null, 2);
 
       const headers = {

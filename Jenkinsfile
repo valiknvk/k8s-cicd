@@ -109,24 +109,16 @@ pipeline {
     }
 
     stage('Health check') {
-      steps {
-        sh '''
-          set -eux
-          export KUBECONFIG=${KUBECONFIG}
+  steps {
+    sh '''
+      set -eux
+      curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18080/
+      curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18081/health
+    '''
+  }
+}
 
-          kubectl -n ${NAMESPACE} port-forward svc/demo-nginx 18080:80 >/tmp/pf-frontend.log 2>&1 &
-          PF_FRONTEND_PID=$!
-          trap 'kill ${PF_FRONTEND_PID} ${PF_BACKEND_PID:-} >/dev/null 2>&1 || true' EXIT
-          sleep 3
-          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:18080/
 
-          kubectl -n ${NAMESPACE} port-forward svc/backend 15000:5000 >/tmp/pf-backend.log 2>&1 &
-          PF_BACKEND_PID=$!
-          sleep 3
-          curl -f --connect-timeout 5 --max-time 20 http://127.0.0.1:15000/health
-        '''
-      }
-    }
   }
 
   post {
