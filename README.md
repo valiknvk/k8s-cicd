@@ -3,13 +3,31 @@
 ## Flow
 GitHub → Jenkins → DockerHub → k3s → NodePort → nginx → Internet
 
-## Replace:
-DOCKERHUB_USERNAME in:
-- Jenkinsfile
-- k8s/deployment.yaml
-
 ## Namespace
 kubectl create namespace demo
+
+## Jenkins setup
+
+sudo -u jenkins KUBECONFIG=/var/lib/jenkins/.kube/config kubectl get ns
+
+If it fails, fix kubeconfig ownership/path first (k3s example):
+
+sudo mkdir -p /var/lib/jenkins/.kube
+sudo cp /etc/rancher/k3s/k3s.yaml /var/lib/jenkins/.kube/config
+sudo chown -R jenkins:jenkins /var/lib/jenkins/.kube
+sudo chmod 600 /var/lib/jenkins/.kube/config
+
+Then verify permissions for your service account:
+
+sudo -u jenkins KUBECONFIG=/var/lib/jenkins/.kube/config kubectl auth can-i create deployments -n demo
+sudo -u jenkins KUBECONFIG=/var/lib/jenkins/.kube/config kubectl auth can-i create services -n demo
+
+Optional Jenkinsfile hardening (to bypass OpenAPI validation call):
+
+kubectl apply --validate=false -f k8s/service.yaml
+kubectl apply --validate=false -f k8s/postgres.yaml
+kubectl apply --validate=false -f k8s/redis.yaml
+kubectl apply --validate=false -f k8s/backend.yaml
 
 ## nginx config
 /etc/nginx/sites-available/k8s:
