@@ -3,6 +3,7 @@ pipeline {
 
   environment {
     DOCKER_IMAGE = "novikva/demo-nginx"
+    KUBECONFIG = '/var/lib/jenkins/.kube/config'
   }
 
   stages {
